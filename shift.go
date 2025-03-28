@@ -5,27 +5,39 @@ import (
 	"errors"
 )
 
-func Encipher(plaintext []byte, key byte) (ciphertext []byte) {
+func Encipher(plaintext []byte, key []byte) (ciphertext []byte) {
 	ciphertext = make([]byte, len(plaintext))
 
 	for i, b := range plaintext {
-		ciphertext[i] = b + key
+		ciphertext[i] = b + key[i%len(key)]
 	}
 
 	return
 }
 
-func Decipher(ciphertext []byte, key byte) (plaintext []byte) {
-	return Encipher(ciphertext, -key)
-}
-
-func Crack(ciphertext, crib []byte) (key byte, err error) {
-	for guess := range 256 {
-		result := Decipher(ciphertext[:len(crib)], byte(guess))
-		if bytes.Equal(result, crib) {
-			return byte(guess), nil
-		}
+func Decipher(ciphertext []byte, key []byte) (plaintext []byte) {
+	plaintext = make([]byte, len(ciphertext))
+	for i, b := range ciphertext {
+		plaintext[i] = b - key[i%len(key)]
 	}
 
-	return 0, errors.New("key not found")
+	return plaintext
+}
+
+const MaxKeyLen = 32
+
+func Crack(ciphertext, crib []byte) (key []byte, err error) {
+	for k := range min(MaxKeyLen, len(ciphertext)) {
+		for guess := range 256 {
+			result := ciphertext[k] - byte(guess)
+			if result == crib[k] {
+				key = append(key, byte(guess))
+				break
+			}
+		}
+		if bytes.Equal(crib, Decipher(ciphertext[:len(crib)], key)) {
+			return key, nil
+		}
+	}
+	return nil, errors.New("no key found")
 }
